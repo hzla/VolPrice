@@ -1,0 +1,146 @@
+<div>
+  <canvas id="myChart"></canvas>
+</div>
+
+<br><br>
+<input id="days"/ placeholder="days">
+<input id="inflection"/ placeholder="inflection">
+<button id="submit">Submit</button>
+
+<script
+  src="https://code.jquery.com/jquery-3.7.0.min.js"
+  integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g="
+  crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="./data.js"></script>
+<script src="./prices.js"></script>
+
+
+
+<script>
+  
+  $(document).ready(function(){
+    $('#submit').on('click', function(){
+      inflection = $('#inflection').val()
+      days = $('#days').val()
+      baseUrl = location.protocol + '//' + location.host + location.pathname
+      baseUrl += `?inflection=${inflection}&days=${days}`
+      window.location.replace(baseUrl)
+
+    })
+
+
+  })
+
+
+  params = new URLSearchParams(window.location.search)
+
+  inflection = params.get('inflection') || 65
+  days = 0 - parseInt(params.get('days')) || 0
+
+
+
+  series = vol['series']
+  coingecko = coingecko['prices']
+  price_lookup = {}
+  timestamps = []
+  empty = []
+  values = []
+  colors = []
+  prices = []
+
+  for (i = 1; i <coingecko.length; i++) {
+    price_lookup[coingecko[i][0]] = coingecko[i][1]
+  }
+
+
+
+
+  for (i = 1; i <series.length; i++) {
+    timestamps.push(timeConverter(series[i][0]))
+    values.push(series[i][1] - inflection)
+    empty.push("")
+    prices.push(price_lookup[series[i][0]])
+    if (series[i][1] >= inflection) {
+      colors.push('green')
+    } else {
+      colors.push('red')
+    }
+  }
+
+  values = values.slice(days)
+  prices = prices.slice(days)
+  colors = colors.slice(days)
+  timestamps = timestamps.slice(days)
+
+  console.log(prices)
+
+
+  const ctx = document.getElementById('myChart');
+
+  myObjBar = new Chart(ctx, {
+
+    data: {
+      labels: timestamps,
+      datasets: [{
+        type: 'line',
+        backgroundColor: 'black',
+        borderColor: 'black',
+        label: 'BTC Price',
+        data: prices,
+        yAxisID: 'y1'
+      },
+      {
+        type: 'bar',
+        backgroundColor: colors,
+        label: '30D IV',
+        data: values,
+        borderWidth: 0,
+        yAxisID: 'y'
+      }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      stacked: false,
+      scales: {
+        y: {
+          type: 'linear',
+          display: true,
+          position: 'left',
+        },
+        y1: {
+          type: 'logarithmic',
+          display: true,
+          position: 'right',
+
+          // grid line settings
+          grid: {
+            drawOnChartArea: false, // only want the grid lines for one axis to show up
+          }
+        }
+      }
+    }
+  });
+
+
+
+
+  var bars = myObjBar.datasets[0].bars;
+  for(i=0;i<bars.length;i++){
+     var color="green";
+
+     if (bars[i].value <= inflection) {
+      color = "red"
+     }
+     
+     //You can check for bars[i].value and put your conditions here
+     bars[i].fillColor = color;
+
+  }
+  myObjBar.update()
+</script>
