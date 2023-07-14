@@ -1,5 +1,7 @@
 <div>
   <canvas id="myChart"></canvas>
+
+  <canvas id="myChartEth"></canvas>
 </div>
 
 <br><br>
@@ -20,6 +22,10 @@
 <script>
   
   $(document).ready(function(){
+    
+
+
+
     $('#submit').on('click', function(){
       inflection = $('#inflection').val()
       days = $('#days').val()
@@ -30,117 +36,366 @@
     })
 
 
-  })
-
-
-  params = new URLSearchParams(window.location.search)
-
-  inflection = params.get('inflection') || 65
-  days = 0 - parseInt(params.get('days')) || 0
+    $.get('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=max&interval=daily', function(data){
 
 
 
-  series = vol['series']
-  coingecko = coingecko['prices']
-  price_lookup = {}
-  timestamps = []
-  empty = []
-  values = []
-  colors = []
-  prices = []
+        params = new URLSearchParams(window.location.search)
 
-  for (i = 1; i <coingecko.length; i++) {
-    price_lookup[coingecko[i][0]] = coingecko[i][1]
-  }
+        inflection = params.get('inflection') || 65
+        days = 0 - parseInt(params.get('days')) || 0
 
+        series = vol['series']
+        coingecko = data['prices']
+        price_lookup = {}
+        timestamps = []
+        empty = []
+        values = []
+        colors = []
+        prices = []
 
-
-
-  for (i = 1; i <series.length; i++) {
-    timestamps.push(timeConverter(series[i][0]))
-    values.push(series[i][1] - inflection)
-    empty.push("")
-    prices.push(price_lookup[series[i][0]])
-    if (series[i][1] >= inflection) {
-      colors.push('green')
-    } else {
-      colors.push('red')
-    }
-  }
-
-  values = values.slice(days)
-  prices = prices.slice(days)
-  colors = colors.slice(days)
-  timestamps = timestamps.slice(days)
-
-  console.log(prices)
+        for (i = 1; i <coingecko.length; i++) {
+          price_lookup[coingecko[i][0]] = coingecko[i][1]
+        }
 
 
-  const ctx = document.getElementById('myChart');
 
-  myObjBar = new Chart(ctx, {
 
-    data: {
-      labels: timestamps,
-      datasets: [{
-        type: 'line',
-        backgroundColor: 'black',
-        borderColor: 'black',
-        label: 'BTC Price',
-        data: prices,
-        yAxisID: 'y1'
-      },
-      {
-        type: 'bar',
-        backgroundColor: colors,
-        label: '30D IV',
-        data: values,
-        borderWidth: 0,
-        yAxisID: 'y'
-      }
-      ]
-    },
-    options: {
-      responsive: true,
-      interaction: {
-        mode: 'index',
-        intersect: false,
-      },
-      stacked: false,
-      scales: {
-        y: {
-          type: 'linear',
-          display: true,
-          position: 'left',
-        },
-        y1: {
-          type: 'logarithmic',
-          display: true,
-          position: 'right',
-
-          // grid line settings
-          grid: {
-            drawOnChartArea: false, // only want the grid lines for one axis to show up
+        for (i = 1; i <series.length; i++) {
+          timestamps.push(timeConverter(series[i][0]))
+          values.push(series[i][1] - inflection)
+          empty.push("")
+          prices.push(price_lookup[series[i][0]])
+          if (series[i][1] >= inflection) {
+            colors.push('green')
+          } else {
+            colors.push('red')
           }
         }
-      }
-    }
-  });
+
+        values = values.slice(days)
+        prices = prices.slice(days)
+        colors = colors.slice(days)
+        timestamps = timestamps.slice(days)
+
+        // console.log(prices)
+
+
+        const ctx = document.getElementById('myChart');
+
+
+        const plugin = {
+          id: 'corsair',
+          defaults: {
+              width: 1,
+              color: '#FF4949',
+              dash: [3, 3],
+          },
+          afterInit: (chart, args, opts) => {
+            chart.corsair = {
+              x: 0,
+              y: 0,
+            }
+          },
+          afterEvent: (chart, args) => {
+            const {inChartArea} = args
+            const {type,x,y} = args.event
+
+            chart.corsair = {x, y, draw: inChartArea}
+            chart.draw()
+          },
+          beforeDatasetsDraw: (chart, args, opts) => {
+            const {ctx} = chart
+            const {top, bottom, left, right} = chart.chartArea
+            const {x, y, draw} = chart.corsair
+            if (!draw) return
+
+            ctx.save()
+            
+            ctx.beginPath()
+            ctx.lineWidth = opts.width
+            ctx.strokeStyle = opts.color
+            ctx.setLineDash(opts.dash)
+            ctx.moveTo(x, bottom)
+            ctx.lineTo(x, top)
+            ctx.moveTo(left, y)
+            ctx.lineTo(right, y)
+            ctx.stroke()
+            
+            ctx.restore()
+          }
+        }
+
+        myObjBar = new Chart(ctx, {
+
+          data: {
+            labels: timestamps,
+            datasets: [{
+              type: 'line',
+              backgroundColor: 'black',
+              borderColor: 'black',
+              label: 'BTC Price',
+              data: prices,
+              yAxisID: 'y1'
+            },
+            {
+              type: 'bar',
+              backgroundColor: colors,
+              label: '30D IV',
+              data: values,
+              borderWidth: 0,
+              yAxisID: 'y'
+            }
+            ]
+          },
+          options: {
+            responsive: true,
+            interaction: {
+              mode: 'index',
+              intersect: false,
+            },
+            stacked: false,
+            scales: {
+              y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+              },
+              y1: {
+                type: 'logarithmic',
+                display: true,
+                position: 'right',
+
+                // grid line settings
+                grid: {
+                  drawOnChartArea: false, // only want the grid lines for one axis to show up
+                }
+              }
+            },
+            hover: {
+              mode: 'index',
+              intersect: false,
+            },
+            plugins: {
+              corsair: {
+                color: 'black',
+              }
+            }
+          },
+          plugins: [plugin]
+        });
 
 
 
 
-  var bars = myObjBar.datasets[0].bars;
-  for(i=0;i<bars.length;i++){
-     var color="green";
+        var bars = myObjBar.datasets[0].bars;
+        for(i=0;i<bars.length;i++){
+           var color="green";
 
-     if (bars[i].value <= inflection) {
-      color = "red"
-     }
-     
-     //You can check for bars[i].value and put your conditions here
-     bars[i].fillColor = color;
+           if (bars[i].value <= inflection) {
+            color = "red"
+           }
+           
+           //You can check for bars[i].value and put your conditions here
+           bars[i].fillColor = color;
 
-  }
-  myObjBar.update()
+        }
+        myObjBar.update()
+
+    })
+
+
+  })
+
+</script>
+
+
+<script>
+  
+  $(document).ready(function(){
+    
+
+
+
+    $('#submit').on('click', function(){
+      inflection = $('#inflection').val()
+      days = $('#days').val()
+      baseUrl = location.protocol + '//' + location.host + location.pathname
+      baseUrl += `?inflection=${inflection}&days=${days}`
+      window.location.replace(baseUrl)
+
+    })
+
+
+    $.get('https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&days=max&interval=daily', function(data){
+
+
+
+        params = new URLSearchParams(window.location.search)
+
+        inflection = params.get('inflection') || 65
+        days = 0 - parseInt(params.get('days')) || 0
+
+        series = eth_vol['series']
+        coingecko = data['prices']
+        price_lookup = {}
+        timestamps = []
+        empty = []
+        values = []
+        colors = []
+        prices = []
+
+        for (i = 1; i < coingecko.length; i++) {
+          price_lookup[coingecko[i][0]] = coingecko[i][1]
+        }
+
+
+
+
+        for (i = 1; i <series.length; i++) {
+          timestamps.push(timeConverter(series[i][0]))
+          values.push(series[i][1] - inflection)
+          empty.push("")
+          prices.push(price_lookup[series[i][0]])
+          if (series[i][1] >= inflection) {
+            colors.push('green')
+          } else {
+            colors.push('red')
+          }
+        }
+
+        values = values.slice(days)
+        prices = prices.slice(days)
+        colors = colors.slice(days)
+        timestamps = timestamps.slice(days)
+
+        // console.log(prices)
+
+
+        const ctx = document.getElementById('myChartEth');
+
+
+        const plugin = {
+          id: 'corsair',
+          defaults: {
+              width: 1,
+              color: '#FF4949',
+              dash: [3, 3],
+          },
+          afterInit: (chart, args, opts) => {
+            chart.corsair = {
+              x: 0,
+              y: 0,
+            }
+          },
+          afterEvent: (chart, args) => {
+            const {inChartArea} = args
+            const {type,x,y} = args.event
+
+            chart.corsair = {x, y, draw: inChartArea}
+            chart.draw()
+          },
+          beforeDatasetsDraw: (chart, args, opts) => {
+            const {ctx} = chart
+            const {top, bottom, left, right} = chart.chartArea
+            const {x, y, draw} = chart.corsair
+            if (!draw) return
+
+            ctx.save()
+            
+            ctx.beginPath()
+            ctx.lineWidth = opts.width
+            ctx.strokeStyle = opts.color
+            ctx.setLineDash(opts.dash)
+            ctx.moveTo(x, bottom)
+            ctx.lineTo(x, top)
+            ctx.moveTo(left, y)
+            ctx.lineTo(right, y)
+            ctx.stroke()
+            
+            ctx.restore()
+          }
+        }
+
+        myObjBar = new Chart(ctx, {
+
+          data: {
+            labels: timestamps,
+            datasets: [{
+              type: 'line',
+              backgroundColor: 'black',
+              borderColor: 'black',
+              label: 'ETH Price',
+              data: prices,
+              yAxisID: 'y1'
+            },
+            {
+              type: 'bar',
+              backgroundColor: colors,
+              label: '30D IV',
+              data: values,
+              borderWidth: 0,
+              yAxisID: 'y'
+            }
+            ]
+          },
+          options: {
+            responsive: true,
+            interaction: {
+              mode: 'index',
+              intersect: false,
+            },
+            stacked: false,
+            scales: {
+              y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+              },
+              y1: {
+                type: 'logarithmic',
+                display: true,
+                position: 'right',
+
+                // grid line settings
+                grid: {
+                  drawOnChartArea: false, // only want the grid lines for one axis to show up
+                }
+              }
+            },
+            hover: {
+              mode: 'index',
+              intersect: false,
+            },
+            plugins: {
+              corsair: {
+                color: 'black',
+              }
+            }
+          },
+          plugins: [plugin]
+        });
+
+
+
+
+        var bars = myObjBar.datasets[0].bars;
+        for(i=0;i<bars.length;i++){
+           var color="green";
+
+           if (bars[i].value <= inflection) {
+            color = "red"
+           }
+           
+           //You can check for bars[i].value and put your conditions here
+           bars[i].fillColor = color;
+
+        }
+        myObjBar.update()
+
+    })
+
+
+  })
+
 </script>
